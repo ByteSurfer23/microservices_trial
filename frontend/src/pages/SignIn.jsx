@@ -29,6 +29,7 @@ const SignIn = () => {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    // signin works 
 
     try {
       // Use Firebase's sign-in method to authenticate the user.
