@@ -5,7 +5,6 @@ const admin = require('firebase-admin');
 const cors = require('cors');
 // Load environment variables from the .env file
 require('dotenv').config();
-const connection = require('./connection');
 // Attempt to parse the service account key, with error handling
 let serviceAccount;
 try {
