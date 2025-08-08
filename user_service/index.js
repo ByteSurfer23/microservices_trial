@@ -3,13 +3,23 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const admin = require('firebase-admin');
 const cors = require('cors');
+// Load environment variables from the .env file
 require('dotenv').config();
-
-const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
+const connection = require('./connection');
+// Attempt to parse the service account key, with error handling
+let serviceAccount;
+try {
+  serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
+} catch (error) {
+  console.error('FATAL ERROR: Failed to parse FIREBASE_SERVICE_ACCOUNT_KEY environment variable.');
+  console.error('Please ensure the variable contains a valid single-line JSON object.');
+  process.exit(1); // Exit the process if the key is invalid
+}
 
 const app = express();
 const port = 3001;
 
+// Initialize Firebase Admin SDK with the parsed service account
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount)
 });
@@ -26,16 +36,30 @@ app.get('/', (req, res) => {
 // Endpoint for user sign-up
 app.post('/signup', async (req, res) => {
   try {
-    const { fullName, email, password, organization, role, location , firebaseUid} = req.body;
+    // Get the Firebase ID token from the Authorization header
+    const idToken = req.headers.authorization.split('Bearer ')[1];
+    if (!idToken) {
+      return res.status(401).json({ message: 'Authorization token not provided.' });
+    }
 
-    if (!fullName || !email || !password || !organization || !role || !location) {
-      // FIX: Use res.json() to send a JSON error object
+    // Verify the ID token to ensure the request is from an authenticated user
+    const decodedToken = await admin.auth().verifyIdToken(idToken);
+    const firebaseUid = decodedToken.uid;
+
+    // Destructure the fields from the body that are sent by the frontend
+    const { fullName, email, organization, role, location, salutation } = req.body;
+
+    // IMPORTANT: Perform backend validation. The 'password' field is no longer
+    // needed here because it's handled by Firebase Auth on the frontend.
+    if (!fullName || !email || !organization || !role || !location || !salutation) {
       return res.status(400).json({ message: 'All fields are required.' });
     }
-     console.log(req.body);
-   
+
+    console.log('Received data:', req.body);
+    
 
     await db.collection('users').doc(firebaseUid).set({
+      salutation, // Add the salutation field to the Firestore document
       name: fullName,
       email,
       organization,
@@ -47,6 +71,7 @@ app.post('/signup', async (req, res) => {
     res.status(201).json({ message: 'User created successfully!', uid: firebaseUid });
   } catch (error) {
     console.error('Error during sign-up:', error);
+    // This error could be due to invalid service account credentials, which is what your log shows.
     res.status(500).json({ message: 'Error creating user', error: error.message });
   }
 });
@@ -55,14 +80,13 @@ app.post('/signup', async (req, res) => {
 app.post('/signin', async (req, res) => {
   try {
     const { email } = req.body;
-    // new commit with minor updates
     if (!email) {
-      // FIX: Use res.json() to send a JSON error object
       return res.status(400).json({ message: 'Email is required.' });
     }
 
     const userRecord = await admin.auth().getUserByEmail(email);
-    const customToken = await admin.auth().createCustomToken(firebaseUid);
+    // FIX: Get the user's UID from the userRecord object
+    const customToken = await admin.auth().createCustomToken(userRecord.uid);
 
     res.status(200).json({ message: 'Custom token generated successfully', customToken });
   } catch (error) {

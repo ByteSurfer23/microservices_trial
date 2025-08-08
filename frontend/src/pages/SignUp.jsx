@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { initializeApp } from 'firebase/app';
-import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
+import React, { useState } from "react";
+import { initializeApp } from "firebase/app";
+import { getAuth, createUserWithEmailAndPassword } from "firebase/auth";
 
 // Access the environment variables from your .env file
 const firebaseConfig = {
@@ -9,93 +9,147 @@ const firebaseConfig = {
   projectId: import.meta.env.VITE_PROJECTID,
   storageBucket: import.meta.env.VITE_STORAGEBUCKET,
   messagingSenderId: import.meta.env.VITE_MESSAGINGSENDERID,
-  appId: import.meta.env.VITE_APPID
+  appId: import.meta.env.VITE_APPID,
 };
 
 // Initialize Firebase once
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 
+// The core SalutationsDropdown component, moved here for a self-contained example
+const SalutationsDropdown = ({ selectedSalutation, onSalutationChange }) => {
+  const salutations = ["Mr.", "Mrs.", "Dr.", "Ms.", "Master", "Miss"];
+
+  return (
+    <div className="mb-4">
+        {" "}
+      <label
+        htmlFor="salutations"
+        className="block text-sm font-medium text-gray-700 mb-2"
+      >
+            Salutation   {" "}
+      </label>
+        {" "}
+      <select
+        id="salutations"
+        name="salutations"
+        value={selectedSalutation}
+        onChange={onSalutationChange}
+        className="block w-full p-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200"
+      >
+           {" "}
+        <option value="" disabled>
+               Select...    {" "}
+        </option>
+           {" "}
+        {salutations.map((salutation, index) => (
+          <option key={index} value={salutation}>
+                  {salutation}    {" "}
+          </option>
+        ))}
+          {" "}
+      </select>
+       {" "}
+    </div>
+  );
+};
+
 const SignUp = () => {
   // State for form inputs
-  const [fullName, setFullName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [organization, setOrganization] = useState('');
-  const [role, setRole] = useState('');
-  const [location, setLocation] = useState('');
+  const [salutation, setSalutation] = useState(""); // New state for salutation
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [organization, setOrganization] = useState("");
+  const [role, setRole] = useState("");
+  const [location, setLocation] = useState(""); // State for UI feedback
 
-  // State for UI feedback
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(false);
+  const [success, setSuccess] = useState(false); // The local URL for your backend microservice
+  const MICROSERVICE_URL = import.meta.env.VITE_SIGNUP; // Function to reset all form fields
 
-  // The local URL for your backend microservice
-  const MICROSERVICE_URL = 'http://localhost:3001/signup';
-
-  // Function to reset all form fields
   const resetForm = () => {
-    setFullName('');
-    setEmail('');
-    setPassword('');
-    setOrganization('');
-    setRole('');
-    setLocation('');
+    setSalutation(""); // Reset salutation state
+    setFullName("");
+    setEmail("");
+    setPassword("");
+    setOrganization("");
+    setRole("");
+    setLocation("");
   };
 
   const handleSignUp = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    setSuccess(false);
+    setSuccess(false); // Manual validation check for all fields, now including salutation
 
-    // Manual validation check for all fields
-    if (!fullName || !email || !password || !organization || !role || !location) {
-      setError('Please fill in all mandatory fields.');
+    if (
+      !salutation ||
+      !fullName ||
+      !email ||
+      !password ||
+      !organization ||
+      !role ||
+      !location
+    ) {
+      setError("Please fill in all mandatory fields.");
       setLoading(false);
       return;
     }
 
     try {
       // Step 1: Register the user with Firebase Authentication.
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
+      const user = userCredential.user; // Step 2: Get the Firebase ID token to authenticate the backend request.
 
-      // Step 2: Get the Firebase ID token to authenticate the backend request.
       const idToken = await user.getIdToken();
 
-      // Step 3: Make an HTTP request to your backend microservice.
-      const response = await fetch(MICROSERVICE_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${idToken}`,
-        },
-        body: JSON.stringify({
-          fullName: fullName,
-          email: user.email,
-          firebaseUid: user.uid,
-          organization: organization,
-          role: role,
-          location: location,
-        }),
-      });
+      const payload = {
+        salutation: salutation,
+        fullName: fullName,
+        email: user.email,
+        firebaseUid: user.uid,
+        organization: organization,
+        role: role,
+        location: location,
+      };
 
-      // Check if the response is okay first.
+      // Log the payload to the console for debugging purposes
+      console.log("Sending to backend:", payload); // Step 3: Make an HTTP request to your backend microservice.
+
+      const response = await fetch(MICROSERVICE_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify(payload),
+      }); // Check if the response is okay first.
+
       if (!response.ok) {
         const contentType = response.headers.get("content-type");
         if (contentType && contentType.indexOf("application/json") !== -1) {
           const errorData = await response.json();
-          throw new Error(errorData.message || 'Backend registration failed.');
+          throw new Error(errorData.message || "Backend registration failed.");
         } else {
-          throw new Error(`Backend request failed with status: ${response.status}`);
+          throw new Error(
+            `Backend request failed with status: ${response.status}`
+          );
         }
       }
 
       const successData = await response.json();
       setSuccess(true);
-      console.log('User registered in Firebase and backend successfully:', successData);
-
+      console.log(
+        "User registered in Firebase and backend successfully:",
+        successData
+      );
     } catch (err) {
       console.error("Error during sign up:", err);
       setError(err.message);
@@ -107,13 +161,30 @@ const SignUp = () => {
 
   return (
     <div className="flex justify-center items-center h-full p-4">
+        {" "}
       <div className="w-full max-w-2xl mx-auto p-6 bg-gray-50 rounded-lg shadow-inner">
-        <h2 className="text-3xl font-bold text-gray-800 mb-6 text-center">Sign Up</h2>
+           {" "}
+        <h2 className="text-3xl font-bold text-gray-800 mb-6 text-center">
+          Sign Up
+        </h2>
+           {" "}
         <form className="space-y-4" onSubmit={handleSignUp}>
+               {/* Add the SalutationsDropdown here */}
+              {" "}
+          <SalutationsDropdown
+            selectedSalutation={salutation}
+            onSalutationChange={(e) => setSalutation(e.target.value)}
+          />
+              {" "}
           <div>
-            <label htmlFor="fullname" className="block text-sm font-medium text-gray-700">
-              Full Name
+                 {" "}
+            <label
+              htmlFor="fullname"
+              className="block text-sm font-medium text-gray-700"
+            >
+                     Full Name      {" "}
             </label>
+                 {" "}
             <input
               id="fullname"
               name="fullname"
@@ -124,11 +195,18 @@ const SignUp = () => {
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
             />
+                {" "}
           </div>
+              {" "}
           <div>
-            <label htmlFor="email-signup" className="block text-sm font-medium text-gray-700">
-              Email Address
+                 {" "}
+            <label
+              htmlFor="email-signup"
+              className="block text-sm font-medium text-gray-700"
+            >
+                     Email Address      {" "}
             </label>
+                 {" "}
             <input
               id="email-signup"
               name="email"
@@ -139,10 +217,18 @@ const SignUp = () => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
+                {" "}
           </div>
+              {" "}
           <div>
-            <label htmlFor="password-signup" className="block text-sm font-medium text-gray-700">
-              Password</label>
+                 {" "}
+            <label
+              htmlFor="password-signup"
+              className="block text-sm font-medium text-gray-700"
+            >
+                     Password
+            </label>
+                 {" "}
             <input
               id="password-signup"
               name="password"
@@ -153,11 +239,18 @@ const SignUp = () => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
+                {" "}
           </div>
+              {" "}
           <div>
-            <label htmlFor="organization" className="block text-sm font-medium text-gray-700">
-              Organization
+                 {" "}
+            <label
+              htmlFor="organization"
+              className="block text-sm font-medium text-gray-700"
+            >
+                     Organization      {" "}
             </label>
+                 {" "}
             <input
               id="organization"
               name="organization"
@@ -167,11 +260,18 @@ const SignUp = () => {
               value={organization}
               onChange={(e) => setOrganization(e.target.value)}
             />
+                {" "}
           </div>
+              {" "}
           <div>
-            <label htmlFor="role" className="block text-sm font-medium text-gray-700">
-              Role
+                 {" "}
+            <label
+              htmlFor="role"
+              className="block text-sm font-medium text-gray-700"
+            >
+                     Role      {" "}
             </label>
+                 {" "}
             <input
               id="role"
               name="role"
@@ -181,11 +281,18 @@ const SignUp = () => {
               value={role}
               onChange={(e) => setRole(e.target.value)}
             />
+                {" "}
           </div>
+              {" "}
           <div>
-            <label htmlFor="location" className="block text-sm font-medium text-gray-700">
-              Location
+                 {" "}
+            <label
+              htmlFor="location"
+              className="block text-sm font-medium text-gray-700"
+            >
+                     Location      {" "}
             </label>
+                 {" "}
             <input
               id="location"
               name="location"
@@ -195,27 +302,33 @@ const SignUp = () => {
               value={location}
               onChange={(e) => setLocation(e.target.value)}
             />
+                {" "}
           </div>
+              {" "}
           <button
             type="submit"
             className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
             disabled={loading}
           >
-            {loading ? 'Signing Up...' : 'Sign Up'}
+                  {loading ? "Signing Up..." : "Sign Up"}    {" "}
           </button>
-
+              {" "}
           {error && (
             <div className="mt-4 text-center text-sm font-medium text-red-600">
-              Error: {error}
+                     Error: {error}     {" "}
             </div>
           )}
+              {" "}
           {success && (
             <div className="mt-4 text-center text-sm font-medium text-green-600">
-              Sign up successful!
+                     Sign up successful!      {" "}
             </div>
           )}
+             {" "}
         </form>
+          {" "}
       </div>
+       {" "}
     </div>
   );
 };
