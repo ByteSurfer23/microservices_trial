@@ -23,8 +23,10 @@ dist-ssr
 *.sln
 *.sw?
 
-# Environment variables
+# Ignore all environment variable files
 .env
+.env.*
+!.env.example   # Keep a safe example template in Git
 
 # Ignore Node.js dependencies
 node_modules/
