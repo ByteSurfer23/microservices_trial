@@ -55,7 +55,7 @@ app.post('/signup', async (req, res) => {
 app.post('/signin', async (req, res) => {
   try {
     const { email } = req.body;
-
+    // new commit with minor updates
     if (!email) {
       // FIX: Use res.json() to send a JSON error object
       return res.status(400).json({ message: 'Email is required.' });

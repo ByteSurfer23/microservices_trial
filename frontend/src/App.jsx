@@ -39,7 +39,7 @@ export default function App() {
             </div>
           </nav>
 
-          {/* Main content area */}
+          {/* Main content area , new commits with minor updates*/}
           <main className="p-8">
             {/* The Routes component defines the available routes.
                 It will render the first Route that matches the current URL. */}
